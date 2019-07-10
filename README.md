@@ -1,1 +1,1 @@
-Erklärung der Anwendung in "pol.py"
+Erklärung der Anwendung in "pol.py".
