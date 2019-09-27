@@ -119,6 +119,7 @@ def visualise(grid_P1,grid_P2):
     plt.colorbar(x2)
     plt.show()
 
+#sensorList=getSensorList(1568048400)
 sensorList=getTestData()
 grid_P1, grid_P2 = interpolation(sensorList,0.975,0.99,5,False)
 visualise(grid_P1,grid_P2)
