@@ -6,22 +6,44 @@ import scipy.io as sio
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
-
+import time
+import urllib.request, json
 
 def getDataFromSensor(sensorID, timestamp):
-    dataHour = pd.read_json(
-        "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + str(
-            sensorID) + "&timestamp=" + str(timestamp), "index")
+    urlFull = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + str(sensorID) + "&timestamp="+str(timestamp)
+    with urllib.request.urlopen(urlFull) as url:
+        latestMeasurement = json.loads(url.read().decode())
+        isContinuous = latestMeasurement['continuous']
 
-    if (dataHour[0][1] != None):
-        p10 = dataHour[0][1]['p10']
-        p25 = dataHour[0][1]['p25']
-        if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
-            return [p10, p25]
+        if (isContinuous != True):
+            return 0
+
+        measurement = latestMeasurement['measurement']
+
+        if (measurement != None):
+            p10 = measurement['p10']
+            p25 = measurement['p25']
+            if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
+                return [p10, p25]
+            else:
+                return 0
         else:
             return 0
-    else:
-        return 0
+
+# def getDataFromSensor(sensorID, timestamp):
+#     dataHour = pd.read_json(
+#         "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + str(
+#             sensorID) + "&timestamp=" + str(timestamp), "index")
+
+#     if (dataHour[0][1] != None):
+#         p10 = dataHour[0][1]['p10']
+#         p25 = dataHour[0][1]['p25']
+#         if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
+#             return [p10, p25]
+#         else:
+#             return 0
+#     else:
+#         return 0
 
 def getSensorList(time):
     response = requests.get(
@@ -119,7 +141,13 @@ def visualise(grid_P1,grid_P2):
     plt.colorbar(x2)
     plt.show()
 
-#sensorList=getSensorList(1568048400)
-sensorList=getTestData()
-grid_P1, grid_P2 = interpolation(sensorList,0.975,0.99,5,False)
-visualise(grid_P1,grid_P2)
+
+# timestamp = int(time.time())
+timestamp = 1569597240
+sensorList= getSensorList(timestamp)
+# sensorList=getTestData()
+if (len(sensorList) < 1):
+    print("No data available 😔")
+else:
+    grid_P1, grid_P2 = interpolation(sensorList, 0.975, 0.99, 5, True, dir='data-'+str(timestamp))
+    # visualise(grid_P1,grid_P2)
