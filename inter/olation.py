@@ -8,6 +8,7 @@ from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
 import time
 import urllib.request, json
+import os
 
 def getDataFromSensor(sensorID, timestamp):
     urlFull = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + str(sensorID) + "&timestamp="+str(timestamp)
@@ -46,25 +47,20 @@ def getDataFromSensor(sensorID, timestamp):
 #         return 0
 
 def getSensorList(time):
-    response = requests.get(
-        "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/sensors")
-    content = response.text
-    splitResponse = [x.strip() for x in content.split('}')]
-    sensorList = []
-    count = 0
-    for i in splitResponse:
-        patern = re.compile(r'"(\d+)":{"lat":([-]?\d+[.]\d+),"lon":([-]?\d+[.]\d+)')
-        matches = patern.findall(i)
-        count = count + 1
-        print(str(count / len(splitResponse) * 100) + '%')
-        if (len(matches) >= 1):
-            lat = float(matches[0][1])
-            lon = float(matches[0][2])
-            pValues = getDataFromSensor(int(matches[0][0]), time)
-            if ((pValues != 0) and (47 < lat) and (lat < 55) and (5 < lon) and (lon < 16)):
-                point = [lon, lat, pValues[0], pValues[1]]
+    fullDataUrl = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/getAllByHour/?timestamp=" + str(time)
 
-                sensorList.append(point)
+    sensorList = []
+    with urllib.request.urlopen(fullDataUrl) as url:
+        allMeasurements = json.loads(url.read().decode())
+
+        for measurement in allMeasurements:
+            lat = measurement['lat']
+            lon = measurement['lon']
+            p10 = measurement['p10']
+            p25 = measurement['p25']
+
+            point = [lon, lat, p10, p25]
+            sensorList.append(point)
 
     return np.array(sensorList)
 
@@ -142,12 +138,21 @@ def visualise(grid_P1,grid_P2):
     plt.show()
 
 
-# timestamp = int(time.time())
-timestamp = 1569597240
-sensorList= getSensorList(timestamp)
-# sensorList=getTestData()
+apiKey = os.environ.get('API_KEY')
+timestamp = int(time.time())
+
+# while (True):
+sensorList = getSensorList(timestamp)
+print(timestamp)
+print(len(sensorList))
+
 if (len(sensorList) < 1):
     print("No data available 😔")
 else:
-    grid_P1, grid_P2 = interpolation(sensorList, 0.975, 0.99, 5, True, dir='data-'+str(timestamp))
-    # visualise(grid_P1,grid_P2)
+    filename = 'data-'+str(timestamp)
+    grid_P1, grid_P2 = interpolation(sensorList, 0.975, 0.99, 5, True, dir=filename)
+    with open(filename + '.mat', 'rb') as f:
+        r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
+                        files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
+        # visualise(grid_P1,grid_P2)
+    # timestamp = timestamp - 3600
