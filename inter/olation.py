@@ -141,7 +141,7 @@ def visualise(grid_P1,grid_P2):
 # make sure this part is only executed right after every full hour
 # generate 5 heatmaps, starting from now
 apiKey = os.environ.get('API_KEY')
-now = int(time.time()) - 1800
+now = int(time.time())
 
 for i in range(5):
   timestamp = now + (i * 3600)
