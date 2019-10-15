@@ -5,7 +5,7 @@ import requests
 import scipy.io as sio
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import time
 import urllib.request, json
 import os
@@ -138,21 +138,24 @@ def visualise(grid_P1,grid_P2):
     plt.show()
 
 
+# make sure this part is only executed right after every full hour
+# generate 5 heatmaps, starting from now
 apiKey = os.environ.get('API_KEY')
-timestamp = int(time.time())
+now = int(time.time()) - 1800
 
-# while (True):
-sensorList = getSensorList(timestamp)
-print(timestamp)
-print(len(sensorList))
+for i in range(5):
+  timestamp = now + (i * 3600)
+  sensorList = getSensorList(timestamp)
+  print(timestamp)
+  print(len(sensorList))
 
-if (len(sensorList) < 1):
-    print("No data available 😔")
-else:
-    filename = 'data-'+str(timestamp)
-    grid_P1, grid_P2 = interpolation(sensorList, 0.975, 0.99, 5, True, dir=filename)
-    with open(filename + '.mat', 'rb') as f:
-        r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
-                        files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
-        # visualise(grid_P1,grid_P2)
-    # timestamp = timestamp - 3600
+  if (len(sensorList) < 1):
+      print("No data available 😔")
+  else:
+      filename = 'data-'+str(timestamp)
+      # change the 5 to a higher value when there are not enough points
+      grid_P1, grid_P2 = interpolation(sensorList, 0.975, 0.99, 5, True, dir=filename)
+      with open(filename + '.mat', 'rb') as f:
+          r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
+                          files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
+      os.remove(filename + '.mat')
