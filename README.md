@@ -1,1 +1,1 @@
-Erklärung der Anwendung in "pol.py".
+Anwendung in "olation.py".
