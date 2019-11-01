@@ -10,44 +10,37 @@ import time
 import urllib.request
 import json
 import os
+import socket
 
 
 def getDataFromSensor(sensorID, timestamp):
     urlFull = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + \
         str(sensorID) + "&timestamp="+str(timestamp)
-    with urllib.request.urlopen(urlFull) as url:
-        latestMeasurement = json.loads(url.read().decode())
-        isContinuous = latestMeasurement['continuous']
 
-        if (isContinuous != True):
-            return 0
+    latestMeasurement = {}
+    try:
+        response = requests.get(urlFull, timeout=20)
+        latestMeasurement = response.json()
+    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout) as e:
+        print("Timeout or error while fetching: " + urlFull)
+        print(e)
 
-        measurement = latestMeasurement['measurement']
+    isContinuous = latestMeasurement['continuous']
 
-        if (measurement != None):
-            p10 = measurement['p10']
-            p25 = measurement['p25']
-            if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
-                return [p10, p25]
-            else:
-                return 0
+    if (isContinuous != True):
+        return 0
+
+    measurement = latestMeasurement['measurement']
+
+    if (measurement != None):
+        p10 = measurement['p10']
+        p25 = measurement['p25']
+        if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
+            return [p10, p25]
         else:
             return 0
-
-# def getDataFromSensor(sensorID, timestamp):
-#     dataHour = pd.read_json(
-#         "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + str(
-#             sensorID) + "&timestamp=" + str(timestamp), "index")
-
-#     if (dataHour[0][1] != None):
-#         p10 = dataHour[0][1]['p10']
-#         p25 = dataHour[0][1]['p25']
-#         if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
-#             return [p10, p25]
-#         else:
-#             return 0
-#     else:
-#         return 0
+    else:
+        return 0
 
 
 def getSensorList(time):
@@ -55,17 +48,23 @@ def getSensorList(time):
         str(time)
 
     sensorList = []
-    with urllib.request.urlopen(fullDataUrl) as url:
-        allMeasurements = json.loads(url.read().decode())
+    allMeasurements = []
+    try:
+        response = requests.get(fullDataUrl, timeout=20)
+        allMeasurements = response.json()
+    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout) as e:
+        print("Timeout or error while fetching: " + fullDataUrl)
+        print(e)
+        return []
 
-        for measurement in allMeasurements:
-            lat = measurement['lat']
-            lon = measurement['lon']
-            p10 = measurement['p10']
-            p25 = measurement['p25']
+    for measurement in allMeasurements:
+        lat = measurement['lat']
+        lon = measurement['lon']
+        p10 = measurement['p10']
+        p25 = measurement['p25']
 
-            point = [lon, lat, p10, p25]
-            sensorList.append(point)
+        point = [lon, lat, p10, p25]
+        sensorList.append(point)
 
     return np.array(sensorList)
 
@@ -137,16 +136,16 @@ def interpolation(sensorList, derivP1, derivP2, sigma, saveResult, dir='P1_P2_gr
     return grid_P1, grid_P2
 
 
-def visualise(grid_P1, grid_P2):
-    grid_lat, grid_lon = np.mgrid[47:55:4001j, 5:16:2751j]
-    plt.subplot(121)
-    x1 = plt.contourf(grid_lon, grid_lat, grid_P1)
-    plt.colorbar(x1)
+# def visualise(grid_P1, grid_P2):
+#     grid_lat, grid_lon = np.mgrid[47:55:4001j, 5:16:2751j]
+#     plt.subplot(121)
+#     x1 = plt.contourf(grid_lon, grid_lat, grid_P1)
+#     plt.colorbar(x1)
 
-    plt.subplot(122)
-    x2 = plt.contourf(grid_lon, grid_lat, grid_P2)
-    plt.colorbar(x2)
-    plt.show()
+#     plt.subplot(122)
+#     x2 = plt.contourf(grid_lon, grid_lat, grid_P2)
+#     plt.colorbar(x2)
+#     plt.show()
 
 
 # make sure this part is only executed right after every full hour
@@ -168,6 +167,12 @@ for i in range(5):
         grid_P1, grid_P2 = interpolation(
             sensorList, 0.975, 0.99, 5, True, dir=filename)
         with open(filename + '.mat', 'rb') as f:
-            r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
-                              files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
+            try:
+                r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
+                                timeout=120,
+                                files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
+            except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout) as e:
+                print("Timeout or error while uploading heatmap: " + filename)
+                print(e)
+            
         os.remove(filename + '.mat')
