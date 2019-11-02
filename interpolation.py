@@ -21,7 +21,7 @@ def getDataFromSensor(sensorID, timestamp):
     try:
         response = requests.get(urlFull, timeout=20)
         latestMeasurement = response.json()
-    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout) as e:
+    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
         print("Timeout or error while fetching: " + urlFull)
         print(e)
 
@@ -50,9 +50,9 @@ def getSensorList(time):
     sensorList = []
     allMeasurements = []
     try:
-        response = requests.get(fullDataUrl, timeout=20)
+        response = requests.get(fullDataUrl, timeout=120)
         allMeasurements = response.json()
-    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout) as e:
+    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
         print("Timeout or error while fetching: " + fullDataUrl)
         print(e)
         return []
@@ -169,9 +169,9 @@ for i in range(5):
         with open(filename + '.mat', 'rb') as f:
             try:
                 r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
-                                timeout=120,
+                                timeout=360,
                                 files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
-            except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout) as e:
+            except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
                 print("Timeout or error while uploading heatmap: " + filename)
                 print(e)
             
