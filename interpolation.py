@@ -12,40 +12,15 @@ import json
 import os
 import socket
 
-
-def getDataFromSensor(sensorID, timestamp):
-    urlFull = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/bySensor?sensor=" + \
-        str(sensorID) + "&timestamp="+str(timestamp)
-
-    latestMeasurement = {}
-    try:
-        response = requests.get(urlFull, timeout=20)
-        latestMeasurement = response.json()
-    except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
-        print("Timeout or error while fetching: " + urlFull)
-        print(e)
-
-    isContinuous = latestMeasurement['continuous']
-
-    if (isContinuous != True):
-        return 0
-
-    measurement = latestMeasurement['measurement']
-
-    if (measurement != None):
-        p10 = measurement['p10']
-        p25 = measurement['p25']
-        if (p10 > 0 and p25 > 0 and 500 > p10 and 500 > p25):
-            return [p10, p25]
-        else:
-            return 0
-    else:
-        return 0
+# BASE_URL = "http://localhost:8080"
+BASE_URL = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService"
 
 
 def getSensorList(time):
-    fullDataUrl = "http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/api/measurements/getAllByHour/?timestamp=" + \
-        str(time)
+    fullDataUrl = BASE_URL + \
+        "/api/measurements/getAllByHour/?timestamp=" + str(time)
+
+    print(fullDataUrl)
 
     sensorList = []
     allMeasurements = []
@@ -168,11 +143,11 @@ for i in range(5):
             sensorList, 0.975, 0.99, 5, True, dir=filename)
         with open(filename + '.mat', 'rb') as f:
             try:
-                r = requests.post('http://basecamp-demos.informatik.uni-hamburg.de:8080/AirDataBackendService/heatmap/',
-                                timeout=360,
-                                files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
+                r = requests.post(BASE_URL + "/heatmap/",
+                                  timeout=360,
+                                  files={'file': f}, data={'apiKey': apiKey, 'timestamp': timestamp})
             except (requests.exceptions.ReadTimeout, socket.timeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError) as e:
                 print("Timeout or error while uploading heatmap: " + filename)
                 print(e)
-            
+
         os.remove(filename + '.mat')
